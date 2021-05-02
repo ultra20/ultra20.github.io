@@ -1,0 +1,77 @@
+<?php
+
+// api_key
+define('API_KEY', 'f9f3c5245cc3a83e4119f00a94c22a56');
+
+// hash
+define('FLOW_UUID', '49cf2c05-21a0-42c4-befe-7df00cf3cf00');
+
+class LeadSender
+{
+    private function getRequestPrams()
+    {
+        return [
+            'referer'      => $_SERVER['HTTP_REFERER'],
+            'ip'           => $_SERVER['REMOTE_ADDR'], // IP адрес ( Поле обязательное )
+            'name'         => $_POST['name'],          // Имя ( Поле обязательное )
+            'phone'        => $_POST['phone'],         // Телефон ( Поле обязательное )
+            'user_agent'   => $_SERVER['HTTP_USER_AGENT'],
+            'country_code' => $_POST['country'], //страна для обзвона ( Поле обязательное ) в формате UA, IT,
+            'sub_id1'      => $_POST['sub_id1'],
+            'sub_id2'      => $_POST['sub_id2'],
+            'sub_id3'      => $_POST['sub_id3'],
+            'utm_source'   => $_POST['utm_source'],
+            'utm_content'  => $_POST['utm_content'],
+            'utm_campaign' => $_POST['utm_campaign'],
+            'utm_term'     => $_POST['utm_term'],
+            'utm_medium'   => $_POST['utm_medium'],
+			'fb_id'        => $_POST['fb_id'],
+            'flow_uuid'    => FLOW_UUID
+        ];
+    }
+
+    public function send($apiKey)
+    {
+        $url     = 'https://api.affstar.com/api/lead/create/publisher?api_key=' . $apiKey;
+        $headers = [
+            // Если авторицация происходит с передачечей api_key в query string строка ниже не нужна
+            "ApiKey:" . $apiKey,
+            'Content-Type: application/json',
+        ];
+
+        $params = $this->getRequestPrams();
+
+        $json_str = json_encode($params);
+
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, $url);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+        curl_setopt($ch, CURLOPT_POST, 1);
+
+        curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+        curl_setopt($ch, CURLOPT_HEADER, false);
+
+        curl_setopt($ch, CURLOPT_POSTFIELDS, $json_str);
+        $output = curl_exec($ch);
+
+        curl_close($ch);
+
+        $response = json_decode($output, true);
+
+        if ($response['success'] === true) {
+            header(
+                'Location: ./confirm.php?name=' . $params['name'] . '&phone=' . $params['phone'] . '&fb_id=' . $params['fb_id'] . '&lead_uuid=' . $response['data']['lead_uuid']
+            );
+        } else {
+            header('Location: ./error.php?err=' . $output);
+        }
+
+        return $output;
+    }
+}
+
+if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+    $output = (new LeadSender())->send(API_KEY);
+} else {
+    echo('error');
+}
